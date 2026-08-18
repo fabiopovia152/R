@@ -1,0 +1,80 @@
+---
+title: "Esame modelizzazione statistica"
+author: "Fabio Povia"
+format: pdf
+editor: visual
+---
+
+## Modello in RSTAN
+
+Definiamo il modello RSTAN denominato `'model1'` definiamo quindi in data un vettore `y[n]` di osservazioni di grandezza `n`
+
+in `parameters` definiamo i parametri del modello da stimare: `sigma` e `mu`
+
+in `model` definiamo le verosomiglianze delle osservazioni e le distribuzioni a priori
+
+```{stan output.var='model1'}
+data{
+  int<lower=1> n;
+  real y[n];
+  
+}parameters
+{
+  real sigma;
+  real mu;
+}
+model
+{
+  sigma ~ gamma(3,1.5);
+  mu ~ normal(1.5,0.15);
+  
+  for(i in 1:n)
+    y[i] ~ normal(mu,sigma);
+}
+```
+
+### Esecuzione del modello
+
+Tramite la funzione `sampling` eseguiamo **MCMC:NUTS** utilizzando il modello predentemente definito passando il numero di osservazioni e i rispettivi valori simulati all'interno di una lista. Utilizziamo 4 catene indipendenti(`chains = 4`), che iterano per 2000 volte(`iter=2000`) con una fase di burnin di 500 (`warmup=500`)
+
+```{r error=FALSE}
+#| message: false
+#| warning: false
+#| paged-print: false
+library(rstan)
+options(mc.cores=4)
+
+set.seed(9998)
+n<-200
+y <- rnorm(n,1.5,0.15)
+
+fit<- rstan::sampling(model1, list(n=n, y=y), iter=2000, warmup=500, chains = 4, verbose=FALSE)
+```
+
+### **Visualizzazione dell'elaborazione**
+
+Importiamo `library(ggplot2)` e `library(bayesplot)` che utilizzeremo per la visualizzazione dei dati
+
+- Visualizziamo i trace delle 4 catene rispetto a sigma e mu
+
+- Visualizziamo le stime a posteriori
+
+- Visualizziamo i grafici con intervallo di credibilità all'80% delle stime a posteriori
+
+```{r error=FALSE}
+#| message: false
+#| warning: false
+#| paged-print: false
+library(ggplot2)
+library(bayesplot)
+
+
+p<-mcmc_trace(fit, pars = c("mu","sigma"),facet_args = list(nrow=2 ,labeller=label_parsed))
+p + facet_text(size=15)
+
+print(fit)
+
+plot_title <- ggtitle("Posterior distribution", "with medians and credible intervals")
+mcmc_areas(fit,pars = c("mu","sigma"), prob = 0.8 ) + plot_title
+```
+
